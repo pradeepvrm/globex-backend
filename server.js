@@ -31,7 +31,9 @@ app.get("/api/products/:id", (req, res) => {
   }
 });
 
-app.post
+app.post("/api/orders", (req, res) => {
+  console.log("Order received:", req.body);
+});
 
 app.listen(3000, () => {
   console.log("Server is running on port 3000");
