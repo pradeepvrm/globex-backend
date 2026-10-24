@@ -1,9 +1,34 @@
 import express from "express";
 import cors from "cors";
+import dotenv from "dotenv";
 import products from "./data/products.json" with { type: "json" };
 
+dotenv.config();
+
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(",").map(origin => origin.trim())
+  : [];
+
+const corsOptions = {
+  origin: (origin, callback) => {
+    if (!origin) {
+      return callback(null, true);
+    }
+
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    return callback(new Error(`CORS blocked for origin: ${origin}`));
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+};
+
 const app = express();
-app.use(cors());
+app.use(cors(corsOptions));
+const PORT = process.env.PORT || 3000;
 
 app.get("/api/test", (req, res) => {
   res.send("Hello World!");
@@ -37,6 +62,6 @@ app.post("/api/orders", (req, res) => {
   console.log("Order received:", req.body);
 });
 
-app.listen(3000, () => {
-  console.log("Server is running on port 3000");
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
 });
