@@ -2,7 +2,6 @@ import express from "express";
 import products from "./data/products.json" with { type: "json" };
 
 const app = express();
-app.use(cors())
 
 app.get("/api/test", (req, res) => {
   res.send("Hello World!");
