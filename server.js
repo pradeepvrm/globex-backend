@@ -1,6 +1,8 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import { readFile, writeFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 import products from "./data/products.json" with { type: "json" };
 
 dotenv.config();
@@ -28,10 +30,12 @@ const corsOptions = {
 
 const app = express();
 app.use(cors(corsOptions));
+app.use(express.json());
 const PORT = process.env.PORT || 3000;
+const ordersFile = fileURLToPath(new URL("./data/orders.json", import.meta.url));
 
-app.get("/api/test", (req, res) => {
-  res.send("Hello World!");
+app.get("/", (req, res) => {
+  res.send("The API is up and running!");
 });
 
 // get all products and search products
@@ -58,10 +62,35 @@ app.get("/api/products/:id", (req, res) => {
   }
 });
 
+// post order to the orders.json
 app.post("/api/orders", (req, res) => {
-  console.log("Order received:", req.body);
+  const order = { ...req.body, userId: req.body.userId };
+  readFile(ordersFile, "utf8")
+    .then((data) => {
+      const orders = data.trim() ? JSON.parse(data) : [];
+      orders.push(order);
+      return writeFile(ordersFile, JSON.stringify(orders, null, 2));
+    })
+    .then(() => res.status(201).json(order))
+    .catch(() => res.status(500).json({ error: "Could not save order" }));
+});
+
+// get orders by userId
+app.get("/api/orders/:userId", (req, res) => {
+  const { userId } = req.params;
+  readFile(ordersFile, "utf8")
+    .then((data) => {
+      const orders = data.trim() ? JSON.parse(data) : [];
+      const userOrders = orders.filter((item) => item.userId === userId);
+      if (!userOrders) {
+        res.status(404).send("No orders found for this user");
+      } else {
+        res.json(userOrders);
+      }
+    })
+    .catch(() => res.status(500).json({ error: "Could not load order" }));
 });
 
 app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+  console.log(`Server is running on port http://localhost:${PORT}`);
 });
