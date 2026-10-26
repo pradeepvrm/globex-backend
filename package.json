@@ -8,6 +8,7 @@
     "db:seed-products": "node seed-products.js"
   },
   "dependencies": {
+    "@clerk/express": "^2.1.83",
     "cors": "^2.8.6",
     "dotenv": "^18.0.9",
     "express": "^5.3.0",

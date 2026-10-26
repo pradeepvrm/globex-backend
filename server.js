@@ -1,9 +1,12 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import { clerkMiddleware } from "@clerk/express";
 import pool from "./config/db.config.js";
 import productRoutes from "./routes/product.routes.js";
 import orderRoutes from "./routes/order.routes.js";
+import adminRoutes from "./routes/admin.routes.js";
+import { isAdmin } from "./middleware/admin.middleware.js";
 
 dotenv.config();
 
@@ -31,9 +34,11 @@ const corsOptions = {
 const app = express();
 app.use(cors(corsOptions));
 app.use(express.json());
+app.use(clerkMiddleware());
 
 app.use("/api/products", productRoutes);
 app.use("/api/orders", orderRoutes);
+app.use("/api/admin", isAdmin, adminRoutes);
 
 app.get("/", (req, res) => {
   res.send("The API is up and running!");
