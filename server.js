@@ -1,9 +1,7 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import { readFile, writeFile } from "node:fs/promises";
-import { fileURLToPath } from "node:url";
-import products from "./data/products.json" with { type: "json" };
+import pool from "./config/db.config.js";
 
 dotenv.config();
 
@@ -32,65 +30,122 @@ const app = express();
 app.use(cors(corsOptions));
 app.use(express.json());
 const PORT = process.env.PORT || 3000;
-const ordersFile = fileURLToPath(new URL("./data/orders.json", import.meta.url));
 
 app.get("/", (req, res) => {
   res.send("The API is up and running!");
 });
 
-// get all products and search products
-app.get("/api/products", (req, res) => {
-  const search = req.query.search;
-  const filteredProducts = search ? products.filter((product) =>
-        `${product.name}, 
-         ${product.category},
-         ${product.brand}`.toLowerCase().includes(search)
-        )
-      : products;
-
-  res.json(filteredProducts);
-});
-
-// get a single product by ID
-app.get("/api/products/:id", (req, res) => {
-  const { id } = req.params;
-  const product = products.find((item) => item.id === Number(id));
-  if (!product) {
-    res.status(404).send("Product not found");
-  } else {
-    res.json(product);
+// Get all products and search products.
+app.get("/api/products", async (req, res) => {
+  const search = typeof req.query.search === "string" ? req.query.search.trim() : "";
+  try {
+    const result = await pool.query(
+      `SELECT *
+       FROM products
+       WHERE $1 = '' OR name ILIKE $2 OR category ILIKE $2 OR brand ILIKE $2
+       ORDER BY id`,
+      [search, `%${search}%`],
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.error("Could not load products:", error);
+    res.status(500).json({ error: "Could not load products" });
   }
 });
 
-// post order to the orders.json
-app.post("/api/orders", (req, res) => {
-  const order = { ...req.body, userId: req.body.userId };
-  readFile(ordersFile, "utf8")
-    .then((data) => {
-      const orders = data.trim() ? JSON.parse(data) : [];
-      orders.push(order);
-      return writeFile(ordersFile, JSON.stringify(orders, null, 2));
-    })
-    .then(() => res.status(201).json(order))
-    .catch(() => res.status(500).json({ error: "Could not save order" }));
+// get a single product by ID.
+app.get("/api/products/:id", async (req, res) => {
+  try {
+    const product = await pool.query(
+      `SELECT * FROM products WHERE id = $1`,
+      [req.params.id],
+    );
+    if (product.rows.length === 0) {
+      return res.status(404).json({ error: "Product not found" });
+    }
+    res.json(product.rows[0]);
+  } catch (error) {
+    console.error("Could not load product:", error);
+    res.status(500).json({ error: "Could not load product" });
+  }
+});
+
+// post orders to db.
+app.post("/api/orders", async (req, res) => {
+  const { id, userId, paymentMethod, items, subtotal, shipping, total } = req.body;
+  
+  try {
+    const orderResult = await pool.query(
+      `INSERT INTO orders (order_number, user_id, payment_method, subtotal, shipping, total)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING id`,
+      [id, userId, paymentMethod, subtotal, shipping, total],
+    );
+    const orderId = orderResult.rows[0].id;
+
+    for (const item of items) {
+      await pool.query(
+        `INSERT INTO order_items (order_id, product_id, product_name, brand, unit_price,
+                                  quantity, image_url, image_alt, size)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        [
+          orderId,
+          item.id,
+          item.name,
+          item.brand,
+          item.price,
+          item.quantity,
+          item.image,
+          item.imageAlt,
+          item.size || null,
+        ],
+      );
+    }
+
+    res.status(201).json({ ...req.body, status: "confirmed" });
+  } catch (error) {
+    console.error("Could not save order:", error);
+    res.status(500).json({ error: "Could not save order" });
+  }
 });
 
 // get orders by userId
-app.get("/api/orders/:userId", (req, res) => {
-  const { userId } = req.params;
-  readFile(ordersFile, "utf8")
-    .then((data) => {
-      const orders = data.trim() ? JSON.parse(data) : [];
-      const userOrders = orders.filter((item) => item.userId === userId);
-      if (!userOrders) {
-        res.status(404).send("No orders found for this user");
-      } else {
-        res.json(userOrders);
-      }
-    })
-    .catch(() => res.status(500).json({ error: "Could not load order" }));
+app.get("/api/orders/:userId", async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT o.order_number AS id, o.user_id AS "userId", o.status,
+              o.placed_at AS "placedAt", o.payment_method AS "paymentMethod",
+              o.subtotal, o.shipping, o.total,
+              json_agg(json_build_object(
+                'id', oi.product_id, 'name', oi.product_name, 'brand', oi.brand,
+                'price', oi.unit_price, 'quantity', oi.quantity, 'image', oi.image_url,
+                'imageAlt', oi.image_alt, 'size', COALESCE(oi.size, '')
+              )) AS items
+       FROM orders o
+       JOIN order_items oi ON oi.order_id = o.id
+       WHERE o.user_id = $1
+       GROUP BY o.id
+       ORDER BY o.placed_at DESC`,
+      [req.params.userId],
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.error("Could not load orders:", error);
+    res.status(500).json({ error: "Could not load orders" });
+  }
 });
 
-app.listen(PORT, () => {
-  console.log(`Server is running on port http://localhost:${PORT}`);
-});
+// connect to the database and start the server
+const startServer = async () => {
+  try {
+    await pool.connect();
+    console.log('Connected to the database successfully.');
+    app.listen(PORT, () => {
+      console.log(`Server is running on port http://localhost:${PORT}`);
+    });
+  } catch (error) {
+    console.error('Could not connect to the database:', error);
+  }
+};
+
+startServer();
