@@ -1,10 +1,16 @@
 import pool from "../config/db.config.js";
 
+const PRODUCT_COLUMNS = `id, category, name, brand,
+       price::float AS price,
+       original_price::float AS "originalPrice",
+       rating::float AS rating, currency, image, gallery,
+       image_alt AS "imageAlt", description`;
+
 export async function getProducts(req, res) {
   const search = typeof req.query.search === "string" ? req.query.search.trim() : "";
   try {
     const result = await pool.query(
-      `SELECT *
+      `SELECT ${PRODUCT_COLUMNS}
        FROM products
        WHERE $1 = '' OR name ILIKE $2 OR category ILIKE $2 OR brand ILIKE $2
        ORDER BY id`,
@@ -20,7 +26,7 @@ export async function getProducts(req, res) {
 export async function getProductById(req, res) {
   try {
     const result = await pool.query(
-      "SELECT * FROM products WHERE id = $1",
+      `SELECT ${PRODUCT_COLUMNS} FROM products WHERE id = $1`,
       [req.params.id],
     );
     if (result.rows.length === 0) {
