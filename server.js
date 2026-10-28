@@ -4,7 +4,7 @@ import dotenv from "dotenv";
 import { clerkMiddleware } from "@clerk/express";
 import pool from "./config/db.config.js";
 import router from "./routes/index.js";
-import { sendFailure, sendSuccess } from "./utils/api-response.js";
+import { sendSuccess } from "./utils/api-response.js";
 
 dotenv.config();
 
@@ -34,23 +34,9 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.use(clerkMiddleware());
 app.use("/api", router);
-app.use("/api", (req, res) => sendFailure(res, 404, "API route not found"));
 
 app.get("/", (req, res) => {
   sendSuccess(res, 200, "The API is up and running", null);
-});
-
-app.use((error, req, res, next) => {
-  const status = Number.isInteger(error.status) && error.status >= 400 && error.status < 600
-    ? error.status
-    : 500;
-  const msg = status < 500 ? error.message : "Internal server error";
-
-  if (status >= 500) {
-    console.error("Unhandled API error:", error);
-  }
-
-  sendFailure(res, status, msg);
 });
 
 const PORT = process.env.PORT || 3000;

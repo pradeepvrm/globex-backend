@@ -12,7 +12,7 @@ export async function getProducts(req, res) {
     const result = await pool.query(
       `SELECT ${PRODUCT_COLUMNS} FROM products ORDER BY id`,
     );
-    sendSuccess(res, 200, "Products retrieved successfully", result.rows);
+    sendSuccess(res, 201, "Products retrieved successfully", result.rows);
   } catch (error) {
     console.error("Could not load admin products:", error);
     sendFailure(res, 500, "Could not load products");

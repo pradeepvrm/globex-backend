@@ -13,8 +13,7 @@ export async function createProduct(req, res) {
 
   try {
     const result = await pool.query(
-      `INSERT INTO products (category, name, brand, price, original_price, rating,
-                             currency, image, gallery, image_alt, description)
+      `INSERT INTO products (category, name, brand, price, original_price, rating, currency, image, gallery, image_alt, description)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        RETURNING ${PRODUCT_COLUMNS}`,
       [
