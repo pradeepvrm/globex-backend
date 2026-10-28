@@ -1,4 +1,5 @@
 import pool from "../config/db.config.js";
+import { sendFailure, sendSuccess } from "../utils/api-response.js";
 
 export async function createOrder(req, res) {
   const { id, userId, paymentMethod, items, subtotal, shipping, total } = req.body;
@@ -31,10 +32,10 @@ export async function createOrder(req, res) {
       );
     }
 
-    res.status(201).json({ ...req.body, status: "confirmed" });
+    sendSuccess(res, 201, "Order created successfully", { ...req.body, status: "confirmed" });
   } catch (error) {
     console.error("Could not save order:", error);
-    res.status(500).json({ error: "Could not save order" });
+    sendFailure(res, 500, "Could not save order");
   }
 }
 
@@ -56,9 +57,9 @@ export async function getOrdersByUserId(req, res) {
        ORDER BY o.placed_at DESC`,
       [req.params.userId],
     );
-    res.json(result.rows);
+    sendSuccess(res, 200, "Orders retrieved successfully", result.rows);
   } catch (error) {
     console.error("Could not load orders:", error);
-    res.status(500).json({ error: "Could not load orders" });
+    sendFailure(res, 500, "Could not load orders");
   }
 }

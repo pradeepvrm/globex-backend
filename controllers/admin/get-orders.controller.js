@@ -1,4 +1,5 @@
 import pool from "../../config/db.config.js";
+import { sendFailure, sendSuccess } from "../../utils/api-response.js";
 
 export async function getOrders(req, res) {
   try {
@@ -16,9 +17,9 @@ export async function getOrders(req, res) {
        GROUP BY o.id
        ORDER BY o.placed_at DESC`,
     );
-    res.json(result.rows);
+    sendSuccess(res, 200, "Orders retrieved successfully", result.rows);
   } catch (error) {
     console.error("Could not load admin orders:", error);
-    res.status(500).json({ error: "Could not load orders" });
+    sendFailure(res, 500, "Could not load orders");
   }
 }

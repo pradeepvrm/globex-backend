@@ -1,25 +1,26 @@
 import pool from "../../config/db.config.js";
+import { sendFailure, sendSuccess } from "../../utils/api-response.js";
 
 export async function deleteProduct(req, res) {
   const id = Number(req.params.id);
 
   if (!Number.isInteger(id)) {
-    return res.status(400).json({ error: "Invalid product id" });
+    return sendFailure(res, 400, "Invalid product id");
   }
 
   try {
     const result = await pool.query(
-      `DELETE FROM products WHERE id = $1`,
+      `DELETE FROM products WHERE id = $1 RETURNING id`,
       [id],
     );
 
     if (result.rowCount === 0) {
-      return res.status(404).json({ error: "Product not found" });
+      return sendFailure(res, 404, "Product not found");
     }
 
-    res.json(result.rows[0]);
+    sendSuccess(res, 200, "Product deleted successfully", result.rows[0]);
   } catch (error) {
     console.error("Could not delete product:", error);
-    res.status(500).json({ error: "Could not delete product" });
+    sendFailure(res, 500, "Could not delete product");
   }
 }

@@ -1,9 +1,10 @@
 import pool from "../config/db.config.js";
+import { sendFailure, sendSuccess } from "../utils/api-response.js";
 
 const PRODUCT_COLUMNS = `id, category, name, brand,
        price::float AS price,
        original_price::float AS "originalPrice",
-       rating::float AS rating, currency, image, gallery,
+       rating::float AS rating, 'Rs.' AS currency, image, gallery,
        image_alt AS "imageAlt", description`;
 
 export async function getProducts(req, res) {
@@ -16,10 +17,10 @@ export async function getProducts(req, res) {
        ORDER BY id`,
       [search, `%${search}%`],
     );
-    res.json(result.rows);
+    sendSuccess(res, 200, "Products retrieved successfully", result.rows);
   } catch (error) {
     console.error("Could not load products:", error);
-    res.status(500).json({ error: "Could not load products" });
+    sendFailure(res, 500, "Could not load products");
   }
 }
 
@@ -30,11 +31,11 @@ export async function getProductById(req, res) {
       [req.params.id],
     );
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: "Product not found" });
+      return sendFailure(res, 404, "Product not found");
     }
-    res.json(result.rows[0]);
+    sendSuccess(res, 200, "Product retrieved successfully", result.rows[0]);
   } catch (error) {
     console.error("Could not load product:", error);
-    res.status(500).json({ error: "Could not load product" });
+    sendFailure(res, 500, "Could not load product");
   }
 }

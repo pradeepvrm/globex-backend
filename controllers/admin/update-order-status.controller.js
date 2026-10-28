@@ -1,4 +1,5 @@
 import pool from "../../config/db.config.js";
+import { sendFailure, sendSuccess } from "../../utils/api-response.js";
 
 const ORDER_STATUSES = ["pending", "confirmed", "shipped", "delivered", "cancelled"];
 
@@ -6,7 +7,7 @@ export async function updateOrderStatus(req, res) {
   const { status } = req.body;
 
   if (!ORDER_STATUSES.includes(status)) {
-    return res.status(400).json({ error: "Invalid order status" });
+    return sendFailure(res, 400, "Invalid order status");
   }
 
   try {
@@ -18,12 +19,12 @@ export async function updateOrderStatus(req, res) {
     );
 
     if (result.rowCount === 0) {
-      return res.status(404).json({ error: "Order not found" });
+      return sendFailure(res, 404, "Order not found");
     }
 
-    res.json(result.rows[0]);
+    sendSuccess(res, 200, "Order status updated successfully", result.rows[0]);
   } catch (error) {
     console.error("Could not update order status:", error);
-    res.status(500).json({ error: "Could not update order status" });
+    sendFailure(res, 500, "Could not update order status");
   }
 }
