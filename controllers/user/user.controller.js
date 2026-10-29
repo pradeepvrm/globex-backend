@@ -37,7 +37,7 @@ export async function loginUser(req, res) {
 
   try {
     const result = await pool.query(
-      `SELECT id, username, password FROM users WHERE username = $1`,
+      `SELECT id, username, email, password, role FROM users WHERE username = $1`,
       [username]
     );
     if (result.rows.length === 0) {
@@ -52,9 +52,17 @@ export async function loginUser(req, res) {
       return;
     }
 
+    const token = jwt.sign(
+        { sub: user.id, username: user.username, email: user.email, role: user.role },
+        process.env.JWT_SECRET,
+        { expiresIn: "1h" }
+    )
+
     sendSuccess(res, 200, "Login successful", {
       id: user.id,
       username: user.username,
+      role: user.role,
+      token: token,
     });
   } catch (error) {
     console.error("Could not login user:", error);

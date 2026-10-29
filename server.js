@@ -1,7 +1,6 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import { clerkMiddleware } from "@clerk/express";
 import pool from "./config/db.config.js";
 import router from "./routes/index.js";
 import { sendSuccess } from "./utils/api-response.js";
@@ -32,7 +31,6 @@ const corsOptions = {
 const app = express();
 app.use(cors(corsOptions));
 app.use(express.json());
-app.use(clerkMiddleware());
 app.use("/api", router);
 
 app.get("/", (req, res) => {

@@ -2,7 +2,8 @@ import pool from "../../config/db.config.js";
 import { sendFailure, sendSuccess } from "../../utils/api-response.js";
 
 export async function createOrder(req, res) {
-  const { id, userId, paymentMethod, items, subtotal, shipping, total } = req.body;
+  const { id, paymentMethod, items, subtotal, shipping, total } = req.body;
+  const userId = req.user.sub;
 
   try {
     const orderResult = await pool.query(
@@ -55,7 +56,7 @@ export async function getOrdersByUserId(req, res) {
        WHERE o.user_id = $1
        GROUP BY o.id
        ORDER BY o.placed_at DESC`,
-      [req.params.userId],
+      [req.user.sub],
     );
     sendSuccess(res, 200, "Orders retrieved successfully", result.rows);
   } catch (error) {
