@@ -16,7 +16,20 @@ export async function registerUser(req, res) {
       `INSERT INTO users (username, email, password) VALUES ($1, $2, $3) RETURNING id, username`,
       [username, email, hashedPassword]
     );
-    sendSuccess(res, 201, "User registered successfully", result.rows[0]);
+
+    const token = jwt.sign(
+        { sub: result.rows[0].id, username: result.rows[0].username, email: email, role: "user" },
+        process.env.JWT_SECRET,
+        { expiresIn: "1h" }
+    );
+
+    const data = {
+      id: result.rows[0].id,
+      username: result.rows[0].username,
+      token: token,
+    };
+
+    sendSuccess(res, 201, "User registered successfully", data);
   } catch (error) {
     if (error.code === "23505") {
       sendFailure(res, 409, "A user with that username or email already exists");
