@@ -1,5 +1,10 @@
 import pool from "../../config/db.config.js";
 import { sendFailure, sendSuccess } from "../../utils/api-response.js";
+import {
+  validateEmail,
+  validatePassword,
+  validateUsername,
+} from "../../utils/user.validation.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { OAuth2Client } from "google-auth-library";
@@ -7,11 +12,10 @@ import { randomUUID } from "node:crypto";
 
 const googleClient = new OAuth2Client(process.env.OAUTH_CLIENT_ID);
 
-
 export async function googleAuth(req, res) {
-  const { credential, mode } = req.body;
-  if (!credential || !["login", "signup"].includes(mode)) {
-    sendFailure(res, 400, "A Google credential and valid auth mode are required");
+  const { credential } = req.body;
+  if (!credential) {
+    sendFailure(res, 400, "A Google credential is required");
     return;
   }
 
@@ -33,11 +37,6 @@ export async function googleAuth(req, res) {
 
     if (result.rows.length && result.rows[0].oauth_id && result.rows[0].oauth_id !== profile.sub) {
       sendFailure(res, 409, "This email is linked to a different Google account");
-      return;
-    }
-
-    if (result.rows.length === 0 && mode === "login") {
-      sendFailure(res, 401, "No account is registered with this Google account");
       return;
     }
 
@@ -84,7 +83,7 @@ export async function googleAuth(req, res) {
       { expiresIn: "1h" }
     );
 
-    sendSuccess(res, mode === "signup" ? 201 : 200, mode === "signup" ? "User registered successfully" : "Login successful", {
+    sendSuccess(res, 200, "Google authentication successful", {
       id: user.id,
       username: user.username,
       role: user.role || "user",
@@ -101,13 +100,32 @@ export async function googleAuth(req, res) {
 }
 
 export async function registerUser(req, res) {
-  const { username, email, password } = req.body;
-  if (!username || !email || !password) {
-    sendFailure(res, 400, "Username, email, and password are required");
-    return;
+  const usernameResult = validateUsername(req.body?.username);
+  const emailResult = validateEmail(req.body?.email);
+  const passwordResult = validatePassword(req.body?.password);
+  const validationError = usernameResult.error || emailResult.error || passwordResult.error;
+  if (validationError) {
+    return sendFailure(res, 400, validationError);
   }
 
+  const { value: username } = usernameResult;
+  const { value: email } = emailResult;
+  const { value: password } = passwordResult;
+
   try {
+    const existingUser = await pool.query(
+      `SELECT username, email FROM users WHERE username = $1 OR email = $2`,
+      [username, email]
+    );
+
+    if (existingUser.rows.some((user) => user.username === username)) {
+      return sendFailure(res, 409, "Username already exists");
+    }
+
+    if (existingUser.rows.some((user) => user.email === email)) {
+      return sendFailure(res, 409, "Email already exists");
+    }
+
     const hashedPassword = await bcrypt.hash(password, 10);
     const result = await pool.query(
       `INSERT INTO users (username, email, password) VALUES ($1, $2, $3) RETURNING id, username`,
@@ -115,7 +133,7 @@ export async function registerUser(req, res) {
     );
 
     const token = jwt.sign(
-        { sub: result.rows[0].id, username: result.rows[0].username, email: email, role: "user" },
+        { sub: result.rows[0].id, username: result.rows[0].username, email, role: "user" },
         process.env.JWT_SECRET,
         { expiresIn: "1h" }
     );
@@ -139,15 +157,21 @@ export async function registerUser(req, res) {
 }
 
 export async function loginUser(req, res) {
-  const { username, password } = req.body;
-  if (!username || !password) {
-    sendFailure(res, 400, "Username and password are required");
+  const usernameResult = validateUsername(req.body?.username);
+  const passwordResult = validatePassword(req.body?.password);
+  const validationError = usernameResult.error || passwordResult.error;
+  
+  if (validationError) {
+    sendFailure(res, 400, validationError);
     return;
   }
 
+  const { value: username } = usernameResult;
+  const { value: password } = passwordResult;
+
   try {
     const result = await pool.query(
-      `SELECT id, username, email, password, role FROM users WHERE username = $1`,
+      `SELECT id, username, email, password, role FROM users WHERE username = $1 or email = $1`,
       [username]
     );
     if (result.rows.length === 0) {
