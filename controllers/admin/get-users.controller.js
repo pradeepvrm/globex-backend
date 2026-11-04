@@ -6,7 +6,7 @@ import { sendFailure, sendSuccess } from "../../utils/api-response.js";
 export async function getUsers(req, res) {
   try {
     const result = await pool.query(
-      `SELECT id, username, email, created_at, role FROM users ORDER BY id`,
+      `SELECT id, fullname, username, email, created_at FROM users ORDER BY id`,
     );
     sendSuccess(res, 200, "Users retrieved successfully", result.rows);
   } catch (error) {
@@ -70,20 +70,3 @@ export async function deleteUser(req, res) {
   }
 }
 
-// Update a user's role.
-export async function updateUserRole(req, res) {
-  const { userId } = req.params;
-  const { role } = req.body;
-
-  try {
-    const result = await pool.query(
-      `UPDATE users SET role = $1 WHERE id = $2 RETURNING id, username, email, created_at, role`,
-      [role, userId],
-    );
-    if (result.rowCount === 0) return sendFailure(res, 404, "User not found");
-    sendSuccess(res, 200, "User role updated successfully", result.rows[0]);
-  } catch (error) {
-    console.error("Could not update user role:", error);
-    sendFailure(res, 500, "Could not update user role");
-  }
-}
