@@ -6,8 +6,11 @@ import { createProduct } from "../controllers/admin/create-product.controller.js
 import { updateProduct } from "../controllers/admin/update-product.controller.js";
 import { deleteProduct } from "../controllers/admin/delete-product.controller.js";
 import { getUsers, getOrdersbyUser, deleteUser } from "../controllers/admin/get-users.controller.js";
+import { getDashboardStats } from "../controllers/admin/get-dashboard-stats.controller.js";
 
 const router = Router();
+
+router.get("/dashboard-stats", getDashboardStats);
 
 // order routes
 router.get("/orders", getOrders);

@@ -5,7 +5,7 @@ const PRODUCT_COLUMNS = `id, category, name, brand,
        price::float AS price,
        original_price::float AS "originalPrice",
        rating::float AS rating, 'Rs.' AS currency, image, gallery,
-       image_alt AS "imageAlt", description`;
+       image_alt AS "imageAlt", description, quantity`;
 
 export async function getProducts(req, res) {
   try { 

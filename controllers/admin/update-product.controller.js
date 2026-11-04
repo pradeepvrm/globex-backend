@@ -6,7 +6,7 @@ const PRODUCT_COLUMNS = `id, category, name, brand,
        price::float AS price,
        original_price::float AS "originalPrice",
        rating::float AS rating, 'Rs.' AS currency, image, gallery,
-       image_alt AS "imageAlt", description`;
+       image_alt AS "imageAlt", description, quantity`;
 
 export async function updateProduct(req, res) {
   const id = Number(req.params.id);
@@ -22,8 +22,8 @@ export async function updateProduct(req, res) {
       `UPDATE products
        SET category = $1, name = $2, brand = $3, price = $4, original_price = $5,
            rating = $6, currency = $7, image = $8, gallery = $9, image_alt = $10,
-           description = $11
-       WHERE id = $12
+           description = $11, quantity = $12
+       WHERE id = $13
        RETURNING ${PRODUCT_COLUMNS}`,
       [
         data.category,
@@ -37,6 +37,7 @@ export async function updateProduct(req, res) {
         data.gallery,
         data.imageAlt,
         data.description,
+        data.quantity,
         id,
       ],
     );

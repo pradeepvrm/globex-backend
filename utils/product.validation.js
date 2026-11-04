@@ -22,6 +22,7 @@ export function parseProduct(body) {
       body.rating === "" || body.rating === null || body.rating === undefined
         ? null
         : Number(body.rating),
+    quantity: Number(body.quantity ?? 0),
     gallery: gallery.length ? gallery : [image],
   };
 }
