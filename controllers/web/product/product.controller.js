@@ -1,5 +1,5 @@
-import pool from "../../config/db.config.js";
-import { sendFailure, sendSuccess } from "../../utils/api-response.js";
+import pool from "../../../config/db.config.js";
+import { sendFailure, sendSuccess } from "../../../utils/api-response.js";
 
 const PRODUCT_COLUMNS = `id, category, name, brand,
        price::float AS price,

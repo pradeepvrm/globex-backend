@@ -1,5 +1,5 @@
-import pool from "../../config/db.config.js";
-import { sendFailure, sendSuccess } from "../../utils/api-response.js";
+import pool from "../../../config/db.config.js";
+import { sendFailure, sendSuccess } from "../../../utils/api-response.js";
 
 export async function createOrder(req, res) {
   const { id, paymentMethod, items, subtotal, shipping, total } = req.body;
