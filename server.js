@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import { fileURLToPath } from "node:url";
 import pool from "./config/db.config.js";
 import router from "./routes/index.js";
 import { sendSuccess } from "./utils/api-response.js";
@@ -30,6 +31,7 @@ const corsOptions = {
 
 const app = express();
 app.use(cors(corsOptions));
+app.use("/uploads", express.static(fileURLToPath(new URL("./uploads", import.meta.url))));
 app.use(express.json());
 app.use("/api", router);
 

@@ -10,7 +10,7 @@ const app = Router();
 
 app.use("/products", productRoutes);
 app.use("/orders", authenticateToken, orderRoutes);
-app.use("/admin",  adminRoutes);
+app.use("/admin", isAdmin, adminRoutes);
 app.use("/users", userRoutes);
 
 export default app;

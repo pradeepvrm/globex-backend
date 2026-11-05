@@ -7,6 +7,8 @@ import { updateProduct } from "../controllers/admin/update-product.controller.js
 import { deleteProduct } from "../controllers/admin/delete-product.controller.js";
 import { getUsers, getOrdersbyUser, deleteUser } from "../controllers/admin/get-users.controller.js";
 import { getDashboardStats } from "../controllers/admin/get-dashboard-stats.controller.js";
+import { uploadProductImages } from "../middleware/product-image-upload.js";
+import { isAdmin } from "../middleware/admin.middleware.js";
 
 const router = Router();
 
@@ -18,8 +20,8 @@ router.patch("/orders/:orderNumber/status", updateOrderStatus);
 
 // product routes
 router.get("/products", getProducts);
-router.post("/products", createProduct);
-router.put("/products/:id", updateProduct);
+router.post("/products", isAdmin, uploadProductImages, createProduct);
+router.put("/products/:id", isAdmin, uploadProductImages, updateProduct);
 router.delete("/products/:id", deleteProduct);
 
 //user routes

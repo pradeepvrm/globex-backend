@@ -1,6 +1,7 @@
 import pool from "../../config/db.config.js";
 import { parseProduct } from "../../utils/product.validation.js";
 import { sendFailure, sendSuccess } from "../../utils/api-response.js";
+import { uploadedImagePath } from "../../middleware/product-image-upload.js";
 
 const PRODUCT_COLUMNS = `id, category, name, brand,
        price::float AS price,
@@ -9,7 +10,25 @@ const PRODUCT_COLUMNS = `id, category, name, brand,
        image_alt AS "imageAlt", description, quantity`;
 
 export async function createProduct(req, res) {
-  const data = parseProduct(req.body);
+  const imageFile = req.files?.imageFile?.[0];
+  const galleryFiles = req.files?.galleryFiles || [];
+  const gallery = req.body.gallery
+    ? Array.isArray(req.body.gallery) ? req.body.gallery : [req.body.gallery]
+    : [];
+  const image = imageFile ? uploadedImagePath(imageFile) : "";
+  const data = parseProduct({
+    ...req.body,
+    image,
+    gallery: [
+      image,
+      ...gallery.filter((galleryImage) => galleryImage !== image),
+      ...galleryFiles.map(uploadedImagePath),
+    ],
+  });
+
+  if (!data.image) {
+    return sendFailure(res, 400, "A main product image is required.");
+  }
 
   try {
     const result = await pool.query(
