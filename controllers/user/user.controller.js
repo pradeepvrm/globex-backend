@@ -80,7 +80,7 @@ export async function googleAuth(req, res) {
     const token = jwt.sign(
       { sub: user.id, username: user.username, email: user.email, role: user.role || "user" },
       process.env.JWT_SECRET,
-      { expiresIn: "1h" }
+      { expiresIn: "6h" }
     );
 
     sendSuccess(res, 200, "Google authentication successful", {
@@ -135,7 +135,7 @@ export async function registerUser(req, res) {
     const token = jwt.sign(
         { sub: result.rows[0].id, username: result.rows[0].username, email, role: "user" },
         process.env.JWT_SECRET,
-        { expiresIn: "1h" }
+        { expiresIn: "6h" }
     );
 
     const data = {
@@ -189,7 +189,7 @@ export async function loginUser(req, res) {
     const token = jwt.sign(
         { sub: user.id, username: user.username, email: user.email, role: user.role },
         process.env.JWT_SECRET,
-        { expiresIn: "1h" }
+        { expiresIn: "6h" }
     )
 
     sendSuccess(res, 200, "Login successful", {

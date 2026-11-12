@@ -11,6 +11,7 @@ const extensionsByMimeType = {
   "image/webp": ".webp",
 };
 
+//multer configuration
 const upload = multer({
   storage: multer.diskStorage({
     destination: uploadDirectory,
@@ -19,7 +20,7 @@ const upload = multer({
     },
   }),
   limits: {
-    fileSize: 10 * 1024 * 1024,
+    fileSize: 10 * 1024 * 1024, // 10 mb
     files: 11,
   },
   fileFilter: (_req, file, callback) => {
