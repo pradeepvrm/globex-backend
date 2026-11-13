@@ -9,6 +9,7 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { OAuth2Client } from "google-auth-library";
 import { randomUUID } from "node:crypto";
+import { sendEmail } from "../../config/nodemailer.config.js";
 
 const googleClient = new OAuth2Client(process.env.OAUTH_CLIENT_ID);
 
@@ -34,6 +35,7 @@ export async function googleAuth(req, res) {
       `SELECT id, username, email, role, oauth_id FROM users WHERE oauth_id = $1 OR email = $2 ORDER BY (oauth_id = $1) DESC LIMIT 1`,
       [profile.sub, profile.email]
     );
+    let createdNewUser = false;
 
     if (result.rows.length && result.rows[0].oauth_id && result.rows[0].oauth_id !== profile.sub) {
       sendFailure(res, 409, "This email is linked to a different Google account");
@@ -51,6 +53,7 @@ export async function googleAuth(req, res) {
             `INSERT INTO users (username, email, password, oauth_id) VALUES ($1, $2, $3, $4) RETURNING id, username, email, role, oauth_id`,
             [username, profile.email, password, profile.sub]
           );
+          createdNewUser = true;
           break;
         } catch (error) {
           // existing user signup conflict
@@ -82,6 +85,18 @@ export async function googleAuth(req, res) {
       process.env.JWT_SECRET,
       { expiresIn: "6h" }
     );
+
+    if (createdNewUser) {
+      try {
+        await sendEmail({
+          to: user.email,
+          subject: "Welcome to Globex",
+          text: `Hi ${user.username},\n\nWelcome to Globex. Your account has been created successfully.`,
+        });
+      } catch (error) {
+        console.error("Could not send registration email:", error);
+      }
+    }
 
     sendSuccess(res, 200, "Google authentication successful", {
       id: user.id,
@@ -143,6 +158,16 @@ export async function registerUser(req, res) {
       username: result.rows[0].username,
       token: token,
     };
+
+    try {
+      await sendEmail({
+        to: email,
+        subject: "Welcome to Globex",
+        text: `Hi ${username},\n\nWelcome to Globex. Your account has been created successfully.`,
+      });
+    } catch (error) {
+      console.error("Could not send registration email:", error);
+    }
 
     sendSuccess(res, 201, "User registered successfully", data);
   } catch (error) {

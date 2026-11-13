@@ -1,5 +1,6 @@
 import pool from "../../../config/db.config.js";
 import { sendFailure, sendSuccess } from "../../../utils/api-response.js";
+import { sendEmail } from "../../../config/nodemailer.config.js";
 
 export async function createOrder(req, res) {
   const { id, paymentMethod, items, subtotal, shipping, total } = req.body;
@@ -31,6 +32,47 @@ export async function createOrder(req, res) {
           item.size || null,
         ],
       );
+    }
+
+    // user email
+    try {
+      const itemSummary = items
+      .map((item) => `${item.name} x${item.quantity} (Rs. ${item.price} each)`)
+
+      await sendEmail({
+        to: req.user.email,
+        subject: `Order ${id} confirmed`,
+        text: [`Hi ${req.user.username},\n\nYour order ${id} has been confirmed.\nTotal: Rs. ${total}\n\n Order Summary`, itemSummary].join("\n"),
+      });
+    } catch (error) {
+      console.error("Could not send order confirmation email:", error);
+    }
+
+    // admin email
+    try {
+      const itemSummary = items
+        .map((item) => `- ${item.name} x${item.quantity} (Rs. ${item.price} each)`)
+        .join("\n");
+
+      await sendEmail({
+        to: process.env.ADMIN_EMAIL,
+        subject: `New order ${id} received`,
+        text: [
+          `A new order has been placed.`,
+          ``,
+          `Order id: ${id}`,
+          `Customer: @${req.user.username} (${req.user.email})`,
+          `Payment method: ${paymentMethod}`,
+          `Subtotal: Rs. ${subtotal}`,
+          `Shipping: Rs. ${shipping}`,
+          `Total: Rs. ${total}`,
+          ``,
+          `Items:`,
+          itemSummary,
+        ].join("\n"),
+      });
+    } catch (error) {
+      console.error("Could not send new-order notification to admin:", error);
     }
 
     sendSuccess(res, 201, "Order created successfully", { ...req.body, status: "confirmed" });
