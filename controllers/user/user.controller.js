@@ -32,7 +32,7 @@ export async function googleAuth(req, res) {
     }
 
     let result = await pool.query(
-      `SELECT id, username, email, role, oauth_id FROM users WHERE oauth_id = $1 OR email = $2 ORDER BY (oauth_id = $1) DESC LIMIT 1`,
+      `SELECT id, username, email, fullname, role, oauth_id FROM users WHERE oauth_id = $1 OR email = $2 ORDER BY (oauth_id = $1) DESC LIMIT 1`,
       [profile.sub, profile.email]
     );
     let createdNewUser = false;
@@ -50,7 +50,7 @@ export async function googleAuth(req, res) {
         try {
           const password = await bcrypt.hash(`${profile.sub}:${randomUUID()}`, 10);
           result = await pool.query(
-            `INSERT INTO users (username, email, password, oauth_id) VALUES ($1, $2, $3, $4) RETURNING id, username, email, role, oauth_id`,
+            `INSERT INTO users (username, email, password, oauth_id) VALUES ($1, $2, $3, $4) RETURNING id, username, email, fullname, role, oauth_id`,
             [username, profile.email, password, profile.sub]
           );
           createdNewUser = true;
@@ -59,7 +59,7 @@ export async function googleAuth(req, res) {
           // existing user signup conflict
           if (error.code !== "23505") throw error;
           const existing = await pool.query(
-            `SELECT id, username, email, role, oauth_id FROM users WHERE oauth_id = $1 OR email = $2 ORDER BY (oauth_id = $1) DESC LIMIT 1`,
+            `SELECT id, username, email, fullname, role, oauth_id FROM users WHERE oauth_id = $1 OR email = $2 ORDER BY (oauth_id = $1) DESC LIMIT 1`,
             [profile.sub, profile.email]
           );
           if (existing.rows.length) {
@@ -74,14 +74,14 @@ export async function googleAuth(req, res) {
 
     if (!result.rows[0].oauth_id) {
       result = await pool.query(
-        `UPDATE users SET oauth_id = $1 WHERE id = $2 RETURNING id, username, email, role, oauth_id`,
+        `UPDATE users SET oauth_id = $1 WHERE id = $2 RETURNING id, username, email, fullname, role, oauth_id`,
         [profile.sub, result.rows[0].id]
       );
     }
 
     const user = result.rows[0];
     const token = jwt.sign(
-      { sub: user.id, username: user.username, email: user.email, role: user.role || "user" },
+      { sub: user.id, username: user.username, email: user.email, fullname: user.fullname, role: user.role || "user" },
       process.env.JWT_SECRET,
       { expiresIn: "6h" }
     );
@@ -143,12 +143,12 @@ export async function registerUser(req, res) {
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const result = await pool.query(
-      `INSERT INTO users (username, email, password) VALUES ($1, $2, $3) RETURNING id, username`,
+      `INSERT INTO users (username, email, password, fullname) VALUES ($1, $2, $3, $1) RETURNING id, username, fullname`,
       [username, email, hashedPassword]
     );
 
     const token = jwt.sign(
-        { sub: result.rows[0].id, username: result.rows[0].username, email, role: "user" },
+        { sub: result.rows[0].id, username: result.rows[0].username, email, fullname: result.rows[0].fullname, role: "user" },
         process.env.JWT_SECRET,
         { expiresIn: "6h" }
     );
@@ -196,7 +196,7 @@ export async function loginUser(req, res) {
 
   try {
     const result = await pool.query(
-      `SELECT id, username, email, password, role FROM users WHERE username = $1 or email = $1`,
+      `SELECT id, username, email, fullname, password, role FROM users WHERE username = $1 or email = $1`,
       [username]
     );
     if (result.rows.length === 0) {
@@ -212,7 +212,7 @@ export async function loginUser(req, res) {
     }
 
     const token = jwt.sign(
-        { sub: user.id, username: user.username, email: user.email, role: user.role },
+      { sub: user.id, username: user.username, email: user.email, fullname: user.fullname, role: user.role },
         process.env.JWT_SECRET,
         { expiresIn: "6h" }
     )
@@ -228,3 +228,60 @@ export async function loginUser(req, res) {
     sendFailure(res, 500, "Could not login user");
   }
 }
+
+export async function updateUser(req,res) {
+  const usernameResult = validateUsername(req.body?.username);
+  const emailResult = validateEmail(req.body?.email);
+  const fullname = typeof req.body?.fullname === "string" ? req.body.fullname.trim() : "";
+  const password = typeof req.body?.password === "string" ? req.body.password : "";
+  const confirmPassword = typeof req.body?.confirmPassword === "string" ? req.body.confirmPassword : "";
+  const validationError = usernameResult.error || emailResult.error ||
+    (fullname.length > 100 ? "Full name must be 100 characters or fewer" : null) ||
+    (password && password.length < 8 ? "Password must be at least 8 characters" : null) ||
+    (password && password !== confirmPassword ? "Passwords do not match" : null) ||
+    (!password && confirmPassword ? "Enter a new password to confirm" : null);
+  if (validationError) return sendFailure(res, 400, validationError);
+
+  const { value: username } = usernameResult;
+  const { value: email } = emailResult;
+  try {
+    const passwordHash = password ? await bcrypt.hash(password, 10) : null;
+    const result = await pool.query(
+      `UPDATE users SET username = $1, email = $2, fullname = COALESCE($3, fullname),
+         password = COALESCE($4, password)
+       WHERE id = $5
+       RETURNING id, username, email, fullname, role`,
+      [username, email, fullname || null, passwordHash, req.user.sub]
+    );
+    if (!result.rows.length) return sendFailure(res, 404, "User not found");
+
+    const user = result.rows[0];
+    const token = jwt.sign(
+      { sub: user.id, username: user.username, email: user.email, fullname: user.fullname, role: user.role || "user" },
+      process.env.JWT_SECRET,
+      { expiresIn: "6h" }
+    );
+    return sendSuccess(res, 200, "Profile updated successfully", {
+      id: user.id, username: user.username, email: user.email, fullname: user.fullname, role: user.role, token,
+    });
+  } catch (error) {
+    if (error.code === "23505") return sendFailure(res, 409, "That username or email is already in use");
+    console.error("Could not update user:", error);
+    return sendFailure(res, 500, "Could not update profile");
+  }
+}
+
+export async function getUserProfile(req, res) {
+  try {
+    const result = await pool.query(
+      "SELECT id, username, email, fullname FROM users WHERE id = $1",
+      [req.user.sub]
+    );
+    if (!result.rows.length) return sendFailure(res, 404, "User not found");
+    return sendSuccess(res, 200, "Profile retrieved successfully", result.rows[0]);
+  } catch (error) {
+    console.error("Could not load user profile:", error);
+    return sendFailure(res, 500, "Could not load profile");
+  }
+}
+
