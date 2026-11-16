@@ -1,8 +1,9 @@
 import { randomUUID } from "node:crypto";
+import { fileURLToPath } from "node:url";
 import dotenv from "dotenv";
 import { createClient } from "@supabase/supabase-js";
 
-dotenv.config();
+dotenv.config({ path: fileURLToPath(new URL("../.env", import.meta.url)) });
 
 const extensionsByMimeType = {
   "image/jpeg": ".jpg",
@@ -18,14 +19,14 @@ function getProductImageStorage() {
   }
 
   const supabaseUrl = process.env.SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  const bucketName = process.env.SUPABASE_STORAGE_BUCKET;
+  const secretKey = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const bucketName = process.env.SUPABASE_STORAGE_BUCKET || "globex-bucket";
 
-  if (!supabaseUrl || !serviceRoleKey || !bucketName) {
+  if (!supabaseUrl || !secretKey) {
     throw new Error("Supabase image storage is not configured.");
   }
 
-  const supabase = createClient(supabaseUrl, serviceRoleKey, {
+  const supabase = createClient(supabaseUrl, secretKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
   storage = supabase.storage.from(bucketName);
