@@ -1,7 +1,7 @@
 import { sendFailure, sendSuccess } from "../../utils/api-response.js";
-import { uploadedImagePath } from "../../middleware/product-image-upload.js";
+import { uploadProductImage } from "../../config/supabase.config.js";
 
-export function uploadedProductImages(req, res) {
+export async function uploadedProductImages(req, res) {
   const imageFile = req.files?.imageFile?.[0];
   const galleryFiles = req.files?.galleryFiles || [];
 
@@ -9,8 +9,18 @@ export function uploadedProductImages(req, res) {
     return sendFailure(res, 400, "Select at least one image to upload.");
   }
 
-  return sendSuccess(res, 201, "Images uploaded successfully", {
-    image: imageFile ? uploadedImagePath(imageFile) : null,
-    gallery: galleryFiles.map(uploadedImagePath),
-  });
+  try {
+    const [image, gallery] = await Promise.all([
+      imageFile ? uploadProductImage(imageFile) : Promise.resolve(null),
+      Promise.all(galleryFiles.map(uploadProductImage)),
+    ]);
+
+    return sendSuccess(res, 201, "Images uploaded successfully", {
+      image,
+      gallery,
+    });
+  } catch (error) {
+    console.error("Could not upload product images:", error);
+    return sendFailure(res, 500, "Could not upload the selected images.");
+  }
 }

@@ -1,28 +1,15 @@
-import { randomUUID } from "node:crypto";
-import { fileURLToPath } from "node:url";
 import multer from "multer";
 
-const uploadDirectory = fileURLToPath(new URL("../uploads", import.meta.url));
-
-const extensionsByMimeType = {
-  "image/jpeg": ".jpg",
-  "image/png": ".png",
-  "image/webp": ".webp",
-};
+const supportedMimeTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
 
 export const productImageUpload = multer({
-  storage: multer.diskStorage({
-    destination: uploadDirectory,
-    filename: (_req, file, callback) => {
-      callback(null, `${randomUUID()}${extensionsByMimeType[file.mimetype]}`);
-    },
-  }),
+  storage: multer.memoryStorage(),
   limits: {
     fileSize: 10 * 1024 * 1024,
     files: 11,
   },
   fileFilter: (_req, file, callback) => {
-    if (!Object.hasOwn(extensionsByMimeType, file.mimetype)) {
+    if (!supportedMimeTypes.has(file.mimetype)) {
       callback(new Error("Images must be JPEG, PNG or WebP"));
       return;
     }

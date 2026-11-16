@@ -25,8 +25,3 @@ export function uploadProductImages(req, res, next) {
     next(error);
   });
 }
-
-export function uploadedImagePath(file) {
-  const baseUrl = process.env.BASE_URL;
-  return new URL(`/uploads/${file.filename}`, `${baseUrl}/`).href;
-}
