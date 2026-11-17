@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { getOrders } from "../controllers/admin/get-orders.controller.js";
+import { getOrderItems } from "../controllers/admin/get-order-items.controller.js";
 import { updateOrderStatus } from "../controllers/admin/update-order-status.controller.js";
 import { getProducts } from "../controllers/admin/get-products.controller.js";
 import { createProduct } from "../controllers/admin/create-product.controller.js";
@@ -14,6 +15,7 @@ router.get("/dashboard-stats", getDashboardStats);
 
 // order routes
 router.get("/orders", getOrders);
+router.get("/orders/:orderNumber/items", getOrderItems);
 router.patch("/orders/:orderNumber/status", updateOrderStatus);
 
 // product routes
