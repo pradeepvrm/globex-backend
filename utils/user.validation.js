@@ -38,3 +38,44 @@ export function validatePassword(value) {
 
   return { value: password, error };
 }
+
+export function validateName(value) {
+  const name = typeof value === "string" ? value.trim() : "";
+  let error = null;
+
+  if (!name) {
+    error = "Name is required";
+  } else if (name.length > 100) {
+    error = "Name must be 100 characters or fewer";
+  }
+
+  return { value: name, error };
+}
+
+export function validateSubject(value) {
+  const subject = typeof value === "string" ? value.trim() : "";
+  let error = null;
+
+  if (!subject) {
+    error = "Subject is required";
+  } else if (/[\r\n]/.test(subject)) {
+    error = "Subject must be a single line";
+  } else if (subject.length > 200) {
+    error = "Subject must be 200 characters or fewer";
+  }
+
+  return { value: subject, error };
+}
+
+export function validateMessage(value) {
+  const message = typeof value === "string" ? value.trim() : "";
+  let error = null;
+
+  if (!message) {
+    error = "Message is required";
+  } else if (message.length > 5000) {
+    error = "Message must be 5000 characters or fewer";
+  }
+
+  return { value: message, error };
+}

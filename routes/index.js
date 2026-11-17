@@ -5,6 +5,7 @@ import adminRoutes from "./admin.routes.js";
 import userRoutes from "./user.routes.js";
 import uploadRoutes from "./upload.routes.js";
 import paymentRoutes from "./payment.routes.js";
+import contactRoutes from "./contact.routes.js";
 import { isAdmin } from "../middleware/admin.middleware.js"
 import { authenticateToken } from "../middleware/auth.middleware.js";
 
@@ -16,5 +17,6 @@ app.use("/payments", authenticateToken, paymentRoutes);
 app.use("/uploads", isAdmin, uploadRoutes);
 app.use("/admin", isAdmin, adminRoutes);
 app.use("/users", userRoutes);
+app.use("/contact", contactRoutes);
 
 export default app;

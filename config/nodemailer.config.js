@@ -18,7 +18,7 @@ function getTransporter() {
   return transporter;
 } 
 
-export function sendEmail({ to, subject, text }) {
+export function sendEmail({ to, subject, text, replyTo }) {
   if (!to) {
     throw new Error("An email recipient is required.");
   }
@@ -28,5 +28,6 @@ export function sendEmail({ to, subject, text }) {
     to,
     subject,
     text,
+    ...(replyTo ? { replyTo } : {}),
   });
 }
