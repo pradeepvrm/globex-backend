@@ -1,5 +1,10 @@
 import pool from "../../../config/db.config.js";
 import { sendFailure, sendSuccess } from "../../../utils/api-response.js";
+import {
+  validateProductId,
+  validateReview,
+  validateReviewPagination,
+} from "../../../utils/review.validation.js";
 
 const REVIEW_SELECT = `
   r.id,
@@ -20,26 +25,19 @@ const REVIEW_SELECT = `
       AND o.status = 'delivered'
   ) AS "verifiedPurchase"`;
 
-function parsePositiveInteger(value) {
-  if (typeof value !== "string" || !/^\d+$/.test(value)) return null;
-  const parsed = Number(value);
-  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
-}
-
 async function productExists(productId) {
   const result = await pool.query("SELECT 1 FROM products WHERE id = $1", [productId]);
   return result.rowCount > 0;
 }
 
 export async function getProductReviews(req, res) {
-  const productId = parsePositiveInteger(req.params.id);
-  if (!productId) return sendFailure(res, 400, "A valid product id is required");
+  const productIdResult = validateProductId(req.params.id);
+  if (productIdResult.error) return sendFailure(res, 400, productIdResult.error);
+  const productId = productIdResult.value;
 
-  const requestedPage = parsePositiveInteger(req.query.page) || 1;
-  const requestedLimit = parsePositiveInteger(req.query.limit) || 10;
-  const limit = Math.min(requestedLimit, 50);
-  const offset = (requestedPage - 1) * limit;
-  if (!Number.isSafeInteger(offset)) return sendFailure(res, 400, "Invalid page number");
+  const pagination = validateReviewPagination(req.query.page, req.query.limit);
+  if (pagination.error) return sendFailure(res, 400, pagination.error);
+  const { page: requestedPage, limit, offset } = pagination;
 
   try {
     if (!(await productExists(productId))) return sendFailure(res, 404, "Product not found");
@@ -85,8 +83,9 @@ export async function getProductReviews(req, res) {
 }
 
 export async function getMyProductReview(req, res) {
-  const productId = parsePositiveInteger(req.params.id);
-  if (!productId) return sendFailure(res, 400, "A valid product id is required");
+  const productIdResult = validateProductId(req.params.id);
+  if (productIdResult.error) return sendFailure(res, 400, productIdResult.error);
+  const productId = productIdResult.value;
 
   try {
     if (!(await productExists(productId))) return sendFailure(res, 404, "Product not found");
@@ -106,17 +105,12 @@ export async function getMyProductReview(req, res) {
 
 // post/edit a review
 export async function upsertProductReview(req, res) {
-  const productId = parsePositiveInteger(req.params.id);
-  const rating = req.body?.rating;
-  const title = typeof req.body?.title === "string" ? req.body.title.trim() : "";
-  const body = typeof req.body?.body === "string" ? req.body.body.trim() : "";
-
-  if (!productId) return sendFailure(res, 400, "A valid product id is required");
-  if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
-    return sendFailure(res, 400, "Rating must be a whole number from 1 to 5");
-  }
-  if (title.length > 120) return sendFailure(res, 400, "Review title must be 120 characters or fewer");
-  if (!body || body.length > 3000) return sendFailure(res, 400, "Review text is required and must be 3000 characters or fewer");
+  const productIdResult = validateProductId(req.params.id);
+  if (productIdResult.error) return sendFailure(res, 400, productIdResult.error);
+  const productId = productIdResult.value;
+  const reviewResult = validateReview(req.body);
+  if (reviewResult.error) return sendFailure(res, 400, reviewResult.error);
+  const { rating, title, body } = reviewResult.value;
 
   try {
     const result = await pool.query(
@@ -142,8 +136,9 @@ export async function upsertProductReview(req, res) {
 }
 
 export async function deleteMyProductReview(req, res) {
-  const productId = parsePositiveInteger(req.params.id);
-  if (!productId) return sendFailure(res, 400, "A valid product id is required");
+  const productIdResult = validateProductId(req.params.id);
+  if (productIdResult.error) return sendFailure(res, 400, productIdResult.error);
+  const productId = productIdResult.value;
 
   try {
     const result = await pool.query(
